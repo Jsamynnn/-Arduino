@@ -1,0 +1,173 @@
+#include <ld3320.h>   //导入LD3320库文件
+#include <PinMap.h>    
+
+#include <Servo.h>    // 声明调用Servo.h库
+Servo servo1;        // 创建舵机对象servo1
+Servo servo2;
+Servo servo3;
+Servo servo4;
+
+VoiceRecognition Voice;                         //声明一个语音识别对象
+int pos = 0;          // 变量pos用来存储舵机位置
+
+#define ENA 3
+#define IN1 5
+#define IN2 6
+#define ENB 7
+#define IN3 8
+#define IN4 10
+#define HIGH 1
+#define LOW 0
+
+
+const int TrigPin = A0; // Trigger Pin of Ultrasonic Sensor超声波模块发送引脚
+const int EchoPin = A1; // Echo Pin of Ultrasonic Sensor超声波模块接收引脚
+float distance; //变量distance用来存储距离
+void setup() 
+{
+    Serial.begin(9600);                      //波特率配置9600
+    Serial.print("Uart start!");                   
+    Voice.init();                                //初始化VoiceRecognition模块   
+    Voice.addCommand("qianjin",0);
+    Voice.addCommand("houtui",1);
+    Voice.addCommand("tingzhi",2);
+    Voice.addCommand("boli",3);             //添加指令，参数（指令内容，指令标签（可重复））
+    Voice.addCommand("zhizhang",4);            //添加指令，参数（指令内容，指令标签（可重复））
+    Voice.addCommand("pingguo",5);              
+    Voice.addCommand("dianchi",6);              
+    Voice.addCommand("zizang",7);           //添加垃圾词汇,防止误识别
+    Voice.start();//开始识别
+    //舵机
+    servo1.attach(0);  // 将引脚0上的舵机与声明的舵机对象连接起来
+    servo2.attach(1);
+    servo3.attach(7);
+    servo4.attach(8);
+    
+    pinMode(ENA,OUTPUT);
+    pinMode(IN1,OUTPUT);
+    pinMode(IN2,OUTPUT);
+    pinMode(ENB,OUTPUT);
+    pinMode(IN3,OUTPUT);
+    pinMode(IN4,OUTPUT);
+
+    pinMode(EchoPin, INPUT);
+    pinMode(TrigPin, OUTPUT);
+    
+}
+void loop() {
+  int i=-1;
+  float t=Chaoshengbo();
+  Serial.print(t);
+  Serial.print( "cm\n" );
+  if(t<=20)//如果距离小于20cm,说明有人在垃圾桶前面，则进行语音识别
+    {
+      while(i<0)
+        {
+          i=Voice.read();
+          delay(2000);
+          Serial.println(i);
+        }
+      
+      
+      switch(i)                          //判断识别
+        {
+          case 0:                                     //若是指令“qian jin”
+              Serial.print("前进");
+              Qianjin();
+              break;
+          case 1:                                     //若是指令“hou tui”
+              Serial.print("后退");
+              Houtui();
+              break;   
+          case 2:
+              Serial.print("停止");
+              Tingzhi();
+              break;   
+          case 3:
+              Serial.print("玻璃是其他垃圾，打开其他垃圾桶");
+              Duoji(1);
+              break;   
+          case 4:
+              Serial.print("纸张是可回收垃圾，打开可回收垃圾桶");
+              Duoji(2); 
+              break; 
+          case 5:
+              Serial.print("苹果是厨余垃圾，打开厨余垃圾桶");
+              Duoji(3);
+              break;
+          case 6:
+              Serial.print("电池是有害垃圾，打开有害垃圾桶");
+              Duoji(4);
+              break;  
+          case 7:
+              Serial.print("指令错误，请重新发送指令");
+          default:
+              break;
+        }
+    }
+    else
+    {
+      }
+}
+
+
+void Duoji(int i) { //舵机模块
+  switch(i)
+  {
+    case 1:                            //可回收垃圾        
+        servo1.write(90);   
+        delay(3000);                    // 延时15ms让舵机转到指定位置                             
+        servo1.write(0);              // 写角度到舵机     
+    case 2:                          //有害垃圾
+        servo2.write(90);   
+        delay(3000);                                               
+        servo2.write(0);
+     case 3:                        //不可回收垃圾
+        servo3.write(90);   
+        delay(3000);                                               
+        servo3.write(0);
+      case 4:                      //厨余垃圾
+        servo4.write(90);   
+        delay(3000);                                               
+        servo4.write(0);              
+    } 
+}
+void Qianjin()      //前进
+{
+  analogWrite(ENA,180);
+  analogWrite(ENB,180);
+  //向前转
+  digitalWrite(IN1,HIGH);
+  digitalWrite(IN2,LOW);
+  digitalWrite(IN3,HIGH);
+  digitalWrite(IN4,LOW);
+  delay(2000);
+  }
+ void Houtui()     //后退
+ {
+  analogWrite(ENA,180);
+  analogWrite(ENB,180);
+  digitalWrite(IN1,0);
+  digitalWrite(IN2,1);
+  digitalWrite(IN3,0);
+  digitalWrite(IN4,1);
+  }
+ void Tingzhi()     //停止
+ {
+  digitalWrite(IN1,1);
+  digitalWrite(IN2,1);
+  digitalWrite(IN3,1);
+  digitalWrite(IN4,1);
+  }
+float Chaoshengbo()
+ {
+   digitalWrite(TrigPin, LOW);
+         delayMicroseconds(2);
+         digitalWrite(TrigPin, HIGH);
+         delayMicroseconds(10);
+         digitalWrite(TrigPin, LOW);
+     // 检测脉冲宽度，并计算出距离
+         distance = pulseIn(EchoPin, HIGH) / 58.00;
+         delay(1000);
+   return distance;
+  }
